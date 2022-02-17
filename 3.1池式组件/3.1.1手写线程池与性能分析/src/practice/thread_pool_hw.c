@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include <pthread.h>
-
+//使用宏定义将某个东西添加到队列中
 #define LL_ADD(item, list) \
     do                     \
     {                      \
