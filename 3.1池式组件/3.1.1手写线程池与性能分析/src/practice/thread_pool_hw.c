@@ -28,14 +28,21 @@
 // Nworker线程节点
 typedef struct NWORKER
 {
-    pthread_t thread;
-    int terminate;
+    pthread_t thread;             //一个线程
+    int terminate;                //终止状态
+    struct NWORKQUEUE *workqueue; //任务队列
+    struct NWORKER *prev;         //前一个线程
+    struct NWORKER *next;         //后一个线程
 
 } nworker;
 
 // Njob任务节点
 typedef struct NJOB
 {
+    void (*job_function)(struct NJOB *job); //任务指针
+    void *user_data;                        //用户数据
+    struct NJOB *prev;                      //前一个工作
+    struct NJOB *next;                      //后一个工作
 } nJob;
 
 // Nworkqueue 线程队列
