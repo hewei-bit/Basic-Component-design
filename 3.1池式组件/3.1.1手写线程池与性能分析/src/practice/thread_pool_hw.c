@@ -45,11 +45,11 @@ typedef struct NJOB
     struct NJOB *next;                      //后一个工作
 } nJob;
 
-// Nworkqueue 线程队列
+// Nworkqueue 工作队列
 typedef struct NWORKQUEUE
 {
-    struct NWORKER *workers;   //线程
-    struct NJOB *waiting_jobs; //队列中的任务
+    struct NWORKER *workers;   //工作人员
+    struct NJOB *waiting_jobs; //任务
     pthread_mutex_t jobs_mtx;  //互斥锁
     pthread_cond_t jobs_cond;  //条件变量
 } nWorkQueue;
@@ -57,15 +57,63 @@ typedef struct NWORKQUEUE
 //给队列起别名为线程池
 typedef nWorkQueue nThreadPool;
 
-//给线程添加一个任务
+//主线程：给线程池添加任务
 static void *ntyWorkerThread(void *ptr)
 {
+    //
     nworker *worker = (nworker *)ptr;
+
+    while (1)
+    {
+        pthread_mutex_lock(&worker->workqueue->jobs_mtx);
+
+        //如果工作队列中等待任务为空
+        while (worker->workqueue->waiting_jobs == NULL)
+        {
+            if (worker->terminate)
+                break;
+            //阻塞等待添加任务
+            pthread_cond_wait(&worker->workqueue->jobs_cond, &worker->workqueue->jobs_mtx);
+        }
+        //工作队列进入终止状态
+        if (worker->terminate)
+        {
+            pthread_mutex_unlock(&worker->workqueue->jobs_mtx);
+        }
+        //把任务从等待队列中取出来
+        nJob *job = worker->workqueue->waiting_jobs;
+        if (job != NULL)
+        {
+            LL_REMOVE(job, worker->workqueue->waiting_jobs);
+        }
+
+        pthread_mutex_unlock(&worker->workqueue->jobs_mtx);
+
+        //如果取出来的任务为空
+        if (job == NULL)
+            continue;
+
+        //将任务指针塞进任务的回调函数中
+        job->job_function(job);
+    }
+
+    // 退出循环
+    free(worker);
+    pthread_exit(NULL);
 }
 
 //创建线程池
 int ntyThreadPoolCreate(nThreadPool *workqueue, int numWorkers)
 {
+    if (numWorkers < 1)
+        numWorkers = 1;
+    memset(workqueue, 0, sizeof(nThreadPool));
+    //初始化要使用的条件变量
+    pthread_cond_t blank_cond = PTHREAD_COND_INITIALIZER;
+    memset(&workqueue->jobs_cond, &blank_cond, sizeof(workqueue->jobs_cond));
+    //初始化互斥锁
+    pthread_mutex_t blank_mutex = PTHREAD_MUTEX_INITIALIZER;
+    memset(&workqueue->jobs_mtx, &blank_mutex, sizeof(workqueue->jobs_mtx));
 }
 
 //关闭线程池
@@ -76,8 +124,15 @@ void ntyThreadPoolShutdown(nThreadPool *workqueue)
 //将任务添加进等待队列
 void ntyThreadPoolQueue(nThreadPool *workqueue, nJob *job)
 {
+    pthread_mutex_lock(&workqueue->jobs_mtx);
 
-    // 发送一个信号给另外一个正在处于阻塞等待状态的线程,使其脱离阻塞状态,继续执行
+    //将任务添加进等待队列
+    LL_ADD(job, workqueue->waiting_jobs);
+    // 发送一个信号给另外一个正在处于阻塞等待状态的线程,
+    // 使其脱离阻塞状态,继续执行
+    pthread_cond_signal(&workqueue->jobs_cond);
+
+    pthread_mutex_unlock(&workqueue->jobs_mtx);
 }
 
 /************************** debug thread pool **************************/
