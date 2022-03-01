@@ -48,7 +48,10 @@ typedef struct NJOB
 // Nworkqueue 线程队列
 typedef struct NWORKQUEUE
 {
-    struct NWORKER *workers;
+    struct NWORKER *workers;   //线程
+    struct NJOB *waiting_jobs; //队列中的任务
+    pthread_mutex_t jobs_mtx;  //互斥锁
+    pthread_cond_t jobs_cond;  //条件变量
 } nWorkQueue;
 
 //给队列起别名为线程池
@@ -57,6 +60,7 @@ typedef nWorkQueue nThreadPool;
 //给线程添加一个任务
 static void *ntyWorkerThread(void *ptr)
 {
+    nworker *worker = (nworker *)ptr;
 }
 
 //创建线程池
