@@ -1,3 +1,12 @@
+/**
+ * @File Name: thread_pool_hw.c
+ * @Brief : 线程池实现（C语言）
+ * @Author : hewei (hewei_1996@qq.com)
+ * @Version : 1.0
+ * @Creat Date : 2022-03-02
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -114,11 +123,56 @@ int ntyThreadPoolCreate(nThreadPool *workqueue, int numWorkers)
     //初始化互斥锁
     pthread_mutex_t blank_mutex = PTHREAD_MUTEX_INITIALIZER;
     memset(&workqueue->jobs_mtx, &blank_mutex, sizeof(workqueue->jobs_mtx));
+
+    int i = 0;
+    // 申请numWorkers个worker
+    for (int i = 0; i < numWorkers; i++)
+    {
+        // 申请一个worker
+        nworker *worker = (nworker *)malloc(sizeof(nworker));
+        if (worker == NULL)
+        {
+            perror("malloc");
+            return 1;
+        }
+
+        // 把队列塞进worker的结构体里
+        memset(worker, 0, sizeof(nworker));
+        worker->workqueue = workqueue;
+
+        // 创建线程
+        int ret = pthread_create(&worker->thread, NULL, ntyWorkerThread, (void *)worker);
+        if (ret)
+        {
+            perror("pthread_create");
+            free(worker);
+            return 1;
+        }
+
+        // 把work添加进workqueue的workers队列里
+        LL_ADD(worker, worker->workqueue->workers);
+    }
+    return 0;
 }
 
 //关闭线程池
 void ntyThreadPoolShutdown(nThreadPool *workqueue)
 {
+    nworker *worker = NULL;
+
+    for (worker = workqueue->workers; worker != NULL; worker = worker->next)
+    {
+        worker->terminate = 1;
+    }
+
+    pthread_mutex_lock(&workqueue->jobs_mtx);
+
+    workqueue->workers = NULL;
+    workqueue->waiting_jobs = NULL;
+    // 广播条件变量
+    pthread_cond_broadcast(&workqueue->jobs_cond);
+
+    pthread_mutex_unlock(&workqueue->jobs_mtx);
 }
 
 //将任务添加进等待队列
@@ -142,11 +196,41 @@ void ntyThreadPoolQueue(nThreadPool *workqueue, nJob *job)
 
 #define KING_MAX_THREAD 80
 #define KING_COUNTER_SIZE 1000
+
 void king_counter(nJob *job)
 {
+    int index = *(int *)job->user_data;
+    printf("index : %d,selfid : %lu \n", index, pthread_self());
+
+    free(job->user_data);
+    free(job);
 }
 
 int main(int argc, char *argv[])
 {
+    nThreadPool pool;
+    // 创建线程池
+    ntyThreadPoolCreate(&pool, KING_COUNTER_SIZE);
+
+    int i = 0;
+    for (i = 0; i < KING_COUNTER_SIZE; i++)
+    {
+        nJob *job = (nJob *)malloc(sizeof(nJob));
+        if (job == NULL)
+        {
+            perror("malloc");
+            exit(1);
+        }
+
+        job->job_function = king_counter;
+        // nJob结构体里userdata是一个指针
+        job->user_data = malloc(sizeof(int));
+        *(int *)job->user_data = i;
+
+        ntyThreadPoolQueue(&pool, job);
+    }
+
+    getchar();
+    printf("\n");
 }
 #endif
