@@ -43,7 +43,7 @@ typedef struct NWORKER
     struct NWORKER *prev;         //前一个线程
     struct NWORKER *next;         //后一个线程
 
-} nworker;
+} nWorker;
 
 // Njob任务节点
 typedef struct NJOB
@@ -70,7 +70,7 @@ typedef nWorkQueue nThreadPool;
 static void *ntyWorkerThread(void *ptr)
 {
     //
-    nworker *worker = (nworker *)ptr;
+    nWorker *worker = (nWorker *)ptr;
 
     while (1)
     {
@@ -88,6 +88,7 @@ static void *ntyWorkerThread(void *ptr)
         if (worker->terminate)
         {
             pthread_mutex_unlock(&worker->workqueue->jobs_mtx);
+            break;
         }
         //把任务从等待队列中取出来
         nJob *job = worker->workqueue->waiting_jobs;
@@ -119,17 +120,17 @@ int ntyThreadPoolCreate(nThreadPool *workqueue, int numWorkers)
     memset(workqueue, 0, sizeof(nThreadPool));
     //初始化要使用的条件变量
     pthread_cond_t blank_cond = PTHREAD_COND_INITIALIZER;
-    memset(&workqueue->jobs_cond, &blank_cond, sizeof(workqueue->jobs_cond));
+    memcpy(&workqueue->jobs_cond, &blank_cond, sizeof(workqueue->jobs_cond));
     //初始化互斥锁
     pthread_mutex_t blank_mutex = PTHREAD_MUTEX_INITIALIZER;
-    memset(&workqueue->jobs_mtx, &blank_mutex, sizeof(workqueue->jobs_mtx));
+    memcpy(&workqueue->jobs_mtx, &blank_mutex, sizeof(workqueue->jobs_mtx));
 
     int i = 0;
     // 申请numWorkers个worker
-    for (int i = 0; i < numWorkers; i++)
+    for (i = 0; i < numWorkers; i++)
     {
         // 申请一个worker
-        nworker *worker = (nworker *)malloc(sizeof(nworker));
+        nWorker *worker = (nWorker *)malloc(sizeof(nWorker));
         if (worker == NULL)
         {
             perror("malloc");
@@ -137,7 +138,7 @@ int ntyThreadPoolCreate(nThreadPool *workqueue, int numWorkers)
         }
 
         // 把队列塞进worker的结构体里
-        memset(worker, 0, sizeof(nworker));
+        memset(worker, 0, sizeof(nWorker));
         worker->workqueue = workqueue;
 
         // 创建线程
@@ -158,7 +159,7 @@ int ntyThreadPoolCreate(nThreadPool *workqueue, int numWorkers)
 //关闭线程池
 void ntyThreadPoolShutdown(nThreadPool *workqueue)
 {
-    nworker *worker = NULL;
+    nWorker *worker = NULL;
 
     for (worker = workqueue->workers; worker != NULL; worker = worker->next)
     {
@@ -200,7 +201,7 @@ void ntyThreadPoolQueue(nThreadPool *workqueue, nJob *job)
 void king_counter(nJob *job)
 {
     int index = *(int *)job->user_data;
-    printf("index : %d,selfid : %lu \n", index, pthread_self());
+    printf("index : %d, selfid : %lu\n", index, pthread_self());
 
     free(job->user_data);
     free(job);
@@ -210,7 +211,7 @@ int main(int argc, char *argv[])
 {
     nThreadPool pool;
     // 创建线程池
-    ntyThreadPoolCreate(&pool, KING_COUNTER_SIZE);
+    ntyThreadPoolCreate(&pool, KING_MAX_THREAD);
 
     int i = 0;
     for (i = 0; i < KING_COUNTER_SIZE; i++)
