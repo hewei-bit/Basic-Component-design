@@ -8,7 +8,8 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(${CMAKE_SOURCE_DIR}/inc)
 
-
+add_executable(thread_pool_hw src/practice/thread_pool_hw.c)
+TARGET_LINK_LIBRARIES(thread_pool_hw pthread)
 
 add_executable(thread_pool src/example/thread_pool.c)
 TARGET_LINK_LIBRARIES(thread_pool pthread)
