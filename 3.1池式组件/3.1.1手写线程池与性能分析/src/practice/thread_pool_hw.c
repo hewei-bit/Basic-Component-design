@@ -66,7 +66,7 @@ typedef struct NWORKQUEUE
 //给队列起别名为线程池
 typedef nWorkQueue nThreadPool;
 
-//主线程：给线程池添加任务
+//主线程：从等待队列中给线程池添加任务
 static void *ntyWorkerThread(void *ptr)
 {
     //
@@ -76,7 +76,7 @@ static void *ntyWorkerThread(void *ptr)
     {
         pthread_mutex_lock(&worker->workqueue->jobs_mtx);
 
-        //如果工作队列中等待任务为空
+        //如果等待队列中等待任务为空
         while (worker->workqueue->waiting_jobs == NULL)
         {
             if (worker->terminate)
