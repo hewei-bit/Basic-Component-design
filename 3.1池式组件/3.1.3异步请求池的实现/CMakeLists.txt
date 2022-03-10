@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(mmpool_HW)
+project(async)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
@@ -8,8 +8,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(${CMAKE_SOURCE_DIR}/inc)
 
-add_executable(mmpool_hw src/practice/mmpool_hw.c)
-TARGET_LINK_LIBRARIES(mmpool_hw pthread)
+add_executable(async_dns_client_noblock src/async/async_dns_client_noblock.c)
+TARGET_LINK_LIBRARIES(async_dns_client_noblock pthread)
 
-add_executable(mmpool src/example/mmpool.c)
-TARGET_LINK_LIBRARIES(mmpool pthread)
+add_executable(sync_dns_client src/async/sync_dns_client.c)
