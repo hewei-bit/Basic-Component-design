@@ -107,11 +107,26 @@ static void dns_parse_name(unsigned char *chunk, unsigned char *ptr, char *out, 
 
 static int dns_parse_response(char *buffer, struct dns_item **domains)
 {
+    int cnt = 0;
     return cnt;
 }
 
 int dns_client_commit(const char *domain)
 {
+    int socketfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (socketfd < 0)
+    {
+        perror("create socket failed \n");
+        exit(1);
+    }
+
+    printf("url: %s \n", domain);
+
+    struct sockaddr_in dest;
+    bzero(&dest, sizeof(dest));
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(53);
+    dest.sin_addr.s_addr = inet_addr(DNS_SVR);
 }
 
 char *domain[] = {
