@@ -75,6 +75,19 @@ struct dns_item
     char *ip;
 };
 
+typedef void (*async_result_cb)(struct dns_item *list, int count);
+
+struct async_context
+{
+    int epfd;
+};
+
+struct ep_arg
+{
+    int sockfd;
+    async_result_cb cb;
+};
+
 int dns_create_header(struct dns_header *header)
 {
     if (header == NULL)
