@@ -1,3 +1,12 @@
+/**
+ * @File Name: async_dns_client_noblock_hw.c
+ * @Brief : 异步请求池（暂时仅提供dns请求），通过epoll实现异步请求
+ * @Author : hewei (hewei_1996@qq.com)
+ * @Version : 1.0
+ * @Creat Date : 2022-03-15
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,17 +86,20 @@ struct dns_item
 
 typedef void (*async_result_cb)(struct dns_item *list, int count);
 
+// 异步请求上下文
 struct async_context
 {
-    int epfd;
+    int epfd; // epoll的fd
 };
 
+// epoll使用的参数
 struct ep_arg
 {
-    int sockfd;
-    async_result_cb cb;
+    int sockfd;         // socketfd
+    async_result_cb cb; //处理返回结果用的回调函数
 };
 
+// 创造dns协议中的header
 int dns_create_header(struct dns_header *header)
 {
     if (header == NULL)
@@ -102,6 +114,7 @@ int dns_create_header(struct dns_header *header)
     return 0;
 }
 
+// 创造dns协议中的question
 int dns_create_question(struct dns_question *question, const char *hostname)
 {
     if (question == NULL)
@@ -140,6 +153,7 @@ int dns_create_question(struct dns_question *question, const char *hostname)
     return 0;
 }
 
+// 创造dns请求
 int dns_build_request(struct dns_header *header, struct dns_question *question, char *request)
 {
 
@@ -168,9 +182,28 @@ static int is_pointer(int in)
     return ((in & 0xC0) == 0xC0);
 }
 
+// fcntl系统调用可以用来对已打开的文件描述符进行各种控制操作以改变已打开文件的的各种属性
+// 开启非阻塞
 static int set_block(int fd, int block)
 {
+    // 查询fd状态
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0)
+        return flags;
+
+    // 开启非阻塞
+    if (block)
+        flags &= ~O_NONBLOCK;
+    else
+        flags |= O_NONBLOCK;
+
+    if (fcntl(fd, F_SETFL, flags) < 0)
+        return -1;
+
+    return 0;
 }
+
+// dns解析名字
 static void dns_parse_name(unsigned char *chunk, unsigned char *ptr, char *out, int *len)
 {
 
@@ -211,6 +244,7 @@ static void dns_parse_name(unsigned char *chunk, unsigned char *ptr, char *out, 
     }
 }
 
+// dns解析请求
 static int dns_parse_response(char *buffer, struct dns_item **domains)
 {
 
@@ -305,6 +339,7 @@ static int dns_parse_response(char *buffer, struct dns_item **domains)
     return cnt;
 }
 
+// dns客户端同步请求推送
 int dns_client_commit(const char *domain)
 {
 
@@ -316,6 +351,8 @@ int dns_client_commit(const char *domain)
     }
 
     printf("url:%s\n", domain);
+
+    set_block(sockfd, 0);
 
     struct sockaddr_in dest;
     bzero(&dest, sizeof(dest));
@@ -336,24 +373,40 @@ int dns_client_commit(const char *domain)
     int req_len = dns_build_request(&header, &question, request);
     int slen = sendto(sockfd, request, req_len, 0, (struct sockaddr *)&dest, sizeof(struct sockaddr));
 
-    char buffer[1024] = {0};
-    struct sockaddr_in addr;
-    size_t addr_len = sizeof(struct sockaddr_in);
+    while (1)
+    {
+        char buffer[1024] = {0};
+        struct sockaddr_in addr;
+        size_t addr_len = sizeof(struct sockaddr_in);
 
-    int n = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, (socklen_t *)&addr_len);
+        int n = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, (socklen_t *)&addr_len);
+        if (n <= 0)
+            continue;
 
-    printf("recvfrom n : %d\n", n);
-    struct dns_item *domains = NULL;
-    dns_parse_response(buffer, &domains);
+        printf("recvfrom n : %d\n", n);
+        struct dns_item *domains = NULL;
+        dns_parse_response(buffer, &domains);
+    }
 
     return 0;
 }
+
 // 4. destroy
 // 	close(epfd);
 // 	pthread_cancel(thid)
 void dns_async_client_free_domains(struct dns_item *list, int count)
 {
+    int i = 0;
+
+    for (i = 0; i < count; i++)
+    {
+        free(list[i].domain);
+        free(list[i].ip);
+    }
+
+    free(list);
 }
+
 // 3. callback
 // 	while(1)
 // 		epoll_wait()
@@ -363,14 +416,86 @@ void dns_async_client_free_domains(struct dns_item *list, int count)
 
 static void *dns_async_client_proc(void *arg)
 {
+    struct async_context *ctx = (struct async_context *)arg;
+
+    int epfd = ctx->epfd;
+
+    while (1)
+    {
+        struct epoll_event events[ASYNC_CLIENT_NUM] = {0};
+
+        int nready = epoll_wait(epfd, events, ASYNC_CLIENT_NUM, -1);
+        if (nready < 0)
+        {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        else if (nready == 0)
+        {
+            continue;
+        }
+
+        printf("nready %d \n", nready);
+        int i = 0;
+        for (i = 0; i < nready; i++)
+        {
+            struct ep_arg *data = (struct ep_arg *)events[i].data.ptr;
+            int sockfd = data->sockfd;
+
+            char buffer[1024] = {0};
+            struct sockaddr_in addr;
+            size_t addr_len = sizeof(struct sockaddr_in);
+            int n = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, (socklen_t *)&addr_len);
+
+            struct dns_item *domain_list = NULL;
+            int count = dns_parse_response(buffer, &domain_list);
+            // 回调函数
+            data->cb(domain_list, count);
+
+            int ret = epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, NULL);
+
+            close(sockfd);
+
+            dns_async_client_free_domains(domain_list, count);
+            free(data);
+        }
+    }
 }
-// 1. Init
+
+// 1. 异步请求池初始化Init
 // 	a. epoll_create
 // 	b. pthread_create
-
+// 返回包含epoll生成fd的async_context
 struct async_context *dns_async_client_init(void)
 {
     int epfd = epoll_create(1);
+    if (epfd < 0)
+        return NULL;
+    // C 库函数 void *calloc(size_t nitems, size_t size) 分配所需的内存空间，并返回一个指向它的指针。malloc 和 calloc 之间的不同点是，
+    // malloc 不会设置内存为零，而 calloc 会设置分配的内存为零。
+    struct async_context *ctx = calloc(1, sizeof(struct async_context));
+    if (ctx == NULL)
+    {
+        close(epfd);
+        return NULL;
+    }
+    ctx->epfd = epfd;
+
+    pthread_t thread_id;
+    int ret = pthread_create(&thread_id, NULL, dns_async_client_proc, ctx);
+    if (ret)
+    {
+        perror("pthread_create");
+        return NULL;
+    }
+    usleep(1); // child go first
+    return ctx;
 }
 // 2. commit
 // 	a. socket
@@ -380,6 +505,50 @@ struct async_context *dns_async_client_init(void)
 // 	e. fd加入到epoll中-->epoll_ctl
 int dns_async_client_commit(struct async_context *ctx, const char *domain, async_result_cb cb)
 {
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sockfd < 0)
+    {
+        perror("create socket failed\n");
+        exit(-1);
+    }
+
+    printf("url:%s\n", domain);
+
+    set_block(sockfd, 0); // nonblock
+
+    struct sockaddr_in dest;
+    bzero(&dest, sizeof(dest));
+    dest.sin_family = AF_INET;
+    dest.sin_port = htons(53);
+    dest.sin_addr.s_addr = inet_addr(DNS_SVR);
+
+    int ret = connect(sockfd, (struct sockaddr *)&dest, sizeof(dest));
+    // printf("connect :%d\n", ret);
+
+    struct dns_header header = {0};
+    dns_create_header(&header);
+
+    struct dns_question question = {0};
+    dns_create_question(&question, domain);
+
+    char request[1024] = {0};
+    int req_len = dns_build_request(&header, &question, request);
+    int slen = sendto(sockfd, request, req_len, 0, (struct sockaddr *)&dest, sizeof(struct sockaddr));
+
+    struct ep_arg *eparg = (struct ep_arg *)calloc(1, sizeof(struct ep_arg));
+    if (eparg == NULL)
+        return -1;
+
+    eparg->sockfd = sockfd;
+    eparg->cb = cb;
+
+    struct epoll_event ev;
+    ev.data.ptr = eparg;
+    ev.events = EPOLLIN;
+
+    ret = epoll_ctl(ctx->epfd, EPOLL_CTL_ADD, sockfd, &ev);
+
+    return ret;
 }
 
 char *domain[] = {
@@ -431,12 +600,19 @@ char *domain[] = {
 
 static void dns_async_client_result_callback(struct dns_item *list, int count)
 {
+    int i = 0;
+
+    for (i = 0; i < count; i++)
+    {
+        printf("name:%s, ip:%s\n", list[i].domain, list[i].ip);
+    }
 }
 
 int main(int argc, char *argv[])
 {
     struct async_context *ctx = dns_async_client_init();
-
+    if (ctx == NULL)
+        return -2;
     int count = sizeof(domain) / sizeof(domain[0]);
     int i = 0;
 
