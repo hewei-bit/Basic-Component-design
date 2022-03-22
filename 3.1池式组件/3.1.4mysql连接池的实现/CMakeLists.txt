@@ -18,8 +18,14 @@ AUX_SOURCE_DIRECTORY(./hiredis DIR_LIB_SRCS)
 # …˙≥…æ≤Ã¨ø‚¡¥Ω”ø‚Dir1
 ADD_LIBRARY (hiredis ${DIR_LIB_SRCS})
 
-add_executable(sync hiredis/redis-async/sync.c)
+add_executable(sync src/redis-async/sync.c)
 TARGET_LINK_LIBRARIES(sync hiredis)
 
-add_executable(async hiredis/redis-async/async.c)
+add_executable(async src/redis-async/async.c)
+TARGET_LINK_LIBRARIES(async hiredis)
+
+add_executable(sync_hw src/redis-async-hw/sync.c)
+TARGET_LINK_LIBRARIES(sync hiredis)
+
+add_executable(async_hw src/redis-async-hw/async.c)
 TARGET_LINK_LIBRARIES(async hiredis)
