@@ -24,8 +24,8 @@ TARGET_LINK_LIBRARIES(sync hiredis)
 add_executable(async src/redis-async/async.c)
 TARGET_LINK_LIBRARIES(async hiredis)
 
-add_executable(sync_hw src/redis-async-hw/sync.c)
-TARGET_LINK_LIBRARIES(sync hiredis)
+# add_executable(sync_hw src/redis-async-hw/sync.c)
+# TARGET_LINK_LIBRARIES(sync hiredis)
 
-add_executable(async_hw src/redis-async-hw/async.c)
-TARGET_LINK_LIBRARIES(async hiredis)
+# add_executable(async_hw src/redis-async-hw/async.c)
+# TARGET_LINK_LIBRARIES(async hiredis)
