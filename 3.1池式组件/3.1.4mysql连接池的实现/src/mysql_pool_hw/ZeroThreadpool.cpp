@@ -22,6 +22,7 @@ bool ZERO_ThreadPool::init(size_t num)
     _threadNum = num;
     return true;
 }
+
 // 只等当前在执行的任务执行完毕
 void ZERO_ThreadPool::stop()
 {

@@ -45,14 +45,6 @@ void test1() // 简单测试线程池
 #define DB_POOL_NAME "mysql_pool"          // 连接池的名字，便于将多个连接池集中管理
 #define DB_POOL_MAX_CON 4                  // 连接池支持的最大连接数量
 
-// #define DB_HOST_IP          "114.215.169.66"             // 数据库服务器ip
-// #define DB_HOST_PORT        3306
-// #define DB_DATABASE_NAME    "mysql_pool_test"       // 数据库对应的库名字, 这里需要自己提前用命令创建完毕
-// #define DB_USERNAME         "root"                  // 数据库用户名
-// #define DB_PASSWORD         "01222t"                // 数据库密码
-// #define DB_POOL_NAME        "mysql_pool"            // 连接池的名字，便于将多个连接池集中管理
-// #define DB_POOL_MAX_CON     4                       // 连接池支持的最大连接数量
-
 // 使用连接池的方式
 void *workUsePool(void *arg, int id) // 任务
 {

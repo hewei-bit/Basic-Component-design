@@ -25,14 +25,6 @@ using namespace std;
 #define DB_POOL_NAME "mysql_pool"          // 连接池的名字，便于将多个连接池集中管理
 #define DB_POOL_MAX_CON 4                  // 连接池支持的最大连接数量
 
-// #define DB_HOST_IP          "114.215.169.66"             // 数据库服务器ip
-// #define DB_HOST_PORT        3306
-// #define DB_DATABASE_NAME    "mysql_pool_test"       // 数据库对应的库名字, 这里需要自己提前用命令创建完毕
-// #define DB_USERNAME         "root"                  // 数据库用户名
-// #define DB_PASSWORD         "23232"                // 数据库密码
-// #define DB_POOL_NAME        "mysql_pool"            // 连接池的名字，便于将多个连接池集中管理
-// #define DB_POOL_MAX_CON     4                       // 连接池支持的最大连接数量
-
 static uint32_t IMUser_nId = 0;
 
 // 把连接传递进去
@@ -199,6 +191,7 @@ void testConnect()
     const char *db_username = DB_USERNAME;
     const char *db_password = DB_PASSWORD;
     int db_maxconncnt = DB_POOL_MAX_CON;
+
     CDBPool *pDBPool = new CDBPool(db_pool_name, db_host, db_port,
                                    db_username, db_password, db_dbname, db_maxconncnt);
     if (pDBPool->Init())
@@ -241,6 +234,7 @@ void testCurd()
     const char *db_username = DB_USERNAME;
     const char *db_password = DB_PASSWORD;
     int db_maxconncnt = DB_POOL_MAX_CON;
+    
     CDBPool *pDBPool = new CDBPool(db_pool_name, db_host, db_port,
                                    db_username, db_password, db_dbname, db_maxconncnt);
     if (pDBPool->Init())
