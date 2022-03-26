@@ -1,4 +1,4 @@
-//zero_threadpool.h
+// zero_threadpool.h
 #ifndef ZERO_THREADPOOL_H
 #define ZERO_THREADPOOL_H
 
@@ -15,13 +15,11 @@
 #endif
 using namespace std;
 
-
-
 void getNow(timeval *tv);
 int64_t getNowMs();
 
-#define TNOW      getNow()
-#define TNOWMS    getNowMs()
+#define TNOW getNow()
+#define TNOWMS getNowMs()
 
 /////////////////////////////////////////////////
 /**
@@ -64,36 +62,38 @@ protected:
     struct TaskFunc
     {
         TaskFunc(uint64_t expireTime) : _expireTime(expireTime)
-        { }
+        {
+        }
 
-        std::function<void()>   _func;
-        int64_t                _expireTime = 0;	//超时的绝对时间
+        std::function<void()> _func;
+        int64_t _expireTime = 0; //超时的绝对时间
     };
     typedef shared_ptr<TaskFunc> TaskFuncPtr;
+
 public:
     /**
-    * @brief 构造函数
-    *
-    */
+     * @brief 构造函数
+     *
+     */
     ZERO_ThreadPool();
 
     /**
-    * @brief 析构, 会停止所有线程
-    */
+     * @brief 析构, 会停止所有线程
+     */
     virtual ~ZERO_ThreadPool();
 
     /**
-    * @brief 初始化.
-    *
-    * @param num 工作线程个数
-    */
+     * @brief 初始化.
+     *
+     * @param num 工作线程个数
+     */
     bool init(size_t num);
 
     /**
-    * @brief 获取线程个数.
-    *
-    * @return size_t 线程个数
-    */
+     * @brief 获取线程个数.
+     *
+     * @return size_t 线程个数
+     */
     size_t getThreadNum()
     {
         std::unique_lock<std::mutex> lock(_mutex);
@@ -102,10 +102,10 @@ public:
     }
 
     /**
-    * @brief 获取当前线程池的任务数
-    *
-    * @return size_t 线程池的任务数
-    */
+     * @brief 获取当前线程池的任务数
+     *
+     * @return size_t 线程池的任务数
+     */
     size_t getJobNum()
     {
         std::unique_lock<std::mutex> lock(_mutex);
@@ -113,35 +113,35 @@ public:
     }
 
     /**
-    * @brief 停止所有线程, 会等待所有线程结束
-    */
+     * @brief 停止所有线程, 会等待所有线程结束
+     */
     void stop();
 
     /**
-    * @brief 启动所有线程
-    */
+     * @brief 启动所有线程
+     */
     bool start(); // 创建线程
 
     /**
-    * @brief 用线程池启用任务(F是function, Args是参数)
-    *
-    * @param ParentFunctor
-    * @param tf
-    * @return 返回任务的future对象, 可以通过这个对象来获取返回值
-    */
+     * @brief 用线程池启用任务(F是function, Args是参数)
+     *
+     * @param ParentFunctor
+     * @param tf
+     * @return 返回任务的future对象, 可以通过这个对象来获取返回值
+     */
     template <class F, class... Args>
-    auto exec(F&& f, Args&&... args) -> std::future<decltype(f(args...))>
+    auto exec(F &&f, Args &&...args) -> std::future<decltype(f(args...))>
     {
-        return exec(0,f,args...);
+        return exec(0, f, args...);
     }
 
     /**
-    * @brief 用线程池启用任务(F是function, Args是参数)
-    *
-    * @param 超时时间 ，单位ms (为0时不做超时控制) ；若任务超时，此任务将被丢弃
-    * @param bind function
-    * @return 返回任务的future对象, 可以通过这个对象来获取返回值
-    */
+     * @brief 用线程池启用任务(F是function, Args是参数)
+     *
+     * @param 超时时间 ，单位ms (为0时不做超时控制) ；若任务超时，此任务将被丢弃
+     * @param bind function
+     * @return 返回任务的future对象, 可以通过这个对象来获取返回值
+     */
     /*
     template <class F, class... Args>
     它是c++里新增的最强大的特性之一，它对参数进行了高度泛化，它能表示0到任意个数、任意类型的参数
@@ -150,75 +150,75 @@ public:
     返回值后置
     */
     template <class F, class... Args>
-    auto exec(int64_t timeoutMs, F&& f, Args&&... args) -> std::future<decltype(f(args...))>
+    auto exec(int64_t timeoutMs, F &&f, Args &&...args) -> std::future<decltype(f(args...))>
     {
-        int64_t expireTime =  (timeoutMs == 0 ? 0 : TNOWMS + timeoutMs);  // 获取现在时间
+        int64_t expireTime = (timeoutMs == 0 ? 0 : TNOWMS + timeoutMs); // 获取现在时间
         //定义返回值类型
-        using RetType = decltype(f(args...));  // 推导返回值
+        using RetType = decltype(f(args...)); // 推导返回值
         // 封装任务
         auto task = std::make_shared<std::packaged_task<RetType()>>(std::bind(std::forward<F>(f),
-                                                              std::forward<Args>(args)...));
+                                                                              std::forward<Args>(args)...));
 
-        TaskFuncPtr fPtr = std::make_shared<TaskFunc>(expireTime);  // 封装任务指针，设置过期时间
-        fPtr->_func = [task]() {  // 具体执行的函数
+        TaskFuncPtr fPtr = std::make_shared<TaskFunc>(expireTime); // 封装任务指针，设置过期时间
+        fPtr->_func = [task]() {                                   // 具体执行的函数
             (*task)();
         };
 
         std::unique_lock<std::mutex> lock(_mutex);
-        _tasks.push(fPtr);              // 插入任务
-        _condition.notify_one();        // 唤醒阻塞的线程，可以考虑只有任务队列为空的情况再去notify
+        _tasks.push(fPtr);       // 插入任务
+        _condition.notify_one(); // 唤醒阻塞的线程，可以考虑只有任务队列为空的情况再去notify
 
-        return task->get_future();;
+        return task->get_future();
+        ;
     }
 
     /**
-    * @brief 等待当前任务队列中, 所有工作全部结束(队列无任务).
-    *
-    * @param millsecond 等待的时间(ms), -1:永远等待
-    * @return           true, 所有工作都处理完毕
-    *                   false,超时退出
-    */
+     * @brief 等待当前任务队列中, 所有工作全部结束(队列无任务).
+     *
+     * @param millsecond 等待的时间(ms), -1:永远等待
+     * @return           true, 所有工作都处理完毕
+     *                   false,超时退出
+     */
     bool waitForAllDone(int millsecond = -1);
 
 protected:
     /**
-    * @brief 获取任务
-    *
-    * @return TaskFuncPtr
-    */
-    bool get(TaskFuncPtr&task);
+     * @brief 获取任务
+     *
+     * @return TaskFuncPtr
+     */
+    bool get(TaskFuncPtr &task);
 
     /**
-    * @brief 线程池是否退出
-    */
+     * @brief 线程池是否退出
+     */
     bool isTerminate() { return _bTerminate; }
 
     /**
-    * @brief 线程运行态
-    */
+     * @brief 线程运行态
+     */
     void run();
 
 protected:
-
     /**
-    * 任务队列
-    */
+     * 任务队列
+     */
     queue<TaskFuncPtr> _tasks;
 
     /**
-    * 工作线程
-    */
-    std::vector<std::thread*> _threads;
+     * 工作线程
+     */
+    std::vector<std::thread *> _threads;
 
-    std::mutex                _mutex;
+    std::mutex _mutex;
 
-    std::condition_variable   _condition;
+    std::condition_variable _condition;
 
-    size_t                    _threadNum;
+    size_t _threadNum;
 
-    bool                      _bTerminate;
+    bool _bTerminate;
 
-    std::atomic<int>          _atomic{ 0 };
+    std::atomic<int> _atomic{0};
 };
 
 #endif // ZERO_THREADPOOL_H
