@@ -24,7 +24,8 @@ static uint32_t
 current_time()
 {
     uint32_t t;
-#if !defined(__APPLE__) || defined(AVAILABLE_MAC_OS_X_VERSION_10_12_AND_LATER)
+#if 0 
+!defined(__APPLE__) || defined(AVAILABLE_MAC_OS_X_VERSION_10_12_AND_LATER)
     struct timespec ti;
     clock_gettime(CLOCK_MONOTONIC, &ti);
     t = (uint32_t)ti.tv_sec * 1000;

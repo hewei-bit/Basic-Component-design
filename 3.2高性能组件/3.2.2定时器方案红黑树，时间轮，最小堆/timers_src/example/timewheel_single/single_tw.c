@@ -3,7 +3,8 @@
 #include <string.h>
 #include <stdint.h>
 
-#if defined(__APPLE__)
+#if 0 
+defined(__APPLE__)
 #include <AvailabilityMacros.h>
 #include <sys/time.h>
 #include <mach/task.h>

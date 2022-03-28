@@ -21,11 +21,11 @@ include_directories(${CMAKE_SOURCE_DIR}/${timers_example_timewheel_single})
 
 add_executable(mh ${timers_example_minheap}/minheap.c ${timers_example_minheap}/mh-timer.c)
 
-add_executable(rbt ${timers_example_rbtree}/rbtree.c ${timers_example_minheap}/rbt-timer.c)
+add_executable(rbt ${timers_example_rbtree}/rbtree.c ${timers_example_rbtree}/rbt-timer.c)
 
-add_executable(skl ${timers_example_skiplist}/skiplist.c ${timers_example_minheap}/skl-timer.c)
+add_executable(skl ${timers_example_skiplist}/skiplist.c ${timers_example_skiplist}/skl-timer.c)
 
-add_executable(stw ${timers_example_timewheel}/single_tw.c)
+add_executable(stw ${timers_example_timewheel_single}/single_tw.c)
 
-add_executable(tw ${timers_example_timewheel_single}/timewheel.c ${timers_example_minheap}/tw-timer.c)
+add_executable(tw ${timers_example_timewheel}/timewheel.c ${timers_example_timewheel}/tw-timer.c)
 TARGET_LINK_LIBRARIES(tw pthread)

@@ -197,8 +197,7 @@ timer_create_timer()
     return r;
 }
 
-uint64_t
-gettime()
+uint64_t gettime()
 {
     uint64_t t;
 #if !defined(__APPLE__) || defined(AVAILABLE_MAC_OS_X_VERSION_10_12_AND_LATER)
