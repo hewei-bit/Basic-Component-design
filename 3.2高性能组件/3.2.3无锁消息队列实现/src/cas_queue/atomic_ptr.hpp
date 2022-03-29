@@ -21,21 +21,20 @@
 #define __ZMQ_ATOMIC_PTR_HPP_INCLUDED__
 
 #if defined __GNUC__
-#define likely(x) __builtin_expect ((x), 1)
-#define unlikely(x) __builtin_expect ((x), 0)
+#define likely(x) __builtin_expect((x), 1)
+#define unlikely(x) __builtin_expect((x), 0)
 #else
 #define likely(x) (x)
 #define unlikely(x) (x)
 #endif
 
 #if (defined __i386__ || defined __x86_64__) && defined __GNUC__
-#define ZMQ_ATOMIC_PTR_X86              // 应该走这里去执行
+#define ZMQ_ATOMIC_PTR_X86 // 应该走这里去执行
 #elif defined __tile__
 #define ZMQ_ATOMIC_PTR_TILE
 #elif (defined ZMQ_HAVE_SOLARIS || defined ZMQ_HAVE_NETBSD)
 #define ZMQ_ATOMIC_PTR_ATOMIC_H
 #endif
-
 
 #if defined ZMQ_ATOMIC_PTR_ATOMIC_H
 #include <atomic.h>
@@ -43,104 +42,103 @@
 #include <arch/atomic.h>
 #endif
 
-#define alloc_assert(x) \
-    do {\
-        if (unlikely (!x)) {\
-            fprintf (stderr, "FATAL ERROR: OUT OF MEMORY (%s:%d)\n",\
-                __FILE__, __LINE__);\
-        }\
+#define alloc_assert(x)                                             \
+    do                                                              \
+    {                                                               \
+        if (unlikely(!x))                                           \
+        {                                                           \
+            fprintf(stderr, "FATAL ERROR: OUT OF MEMORY (%s:%d)\n", \
+                    __FILE__, __LINE__);                            \
+        }                                                           \
     } while (false)
 
+//  This class encapsulates several atomic operations on pointers.
 
-    //  This class encapsulates several atomic operations on pointers.
-
-    template <typename T> class atomic_ptr_t
+template <typename T>
+class atomic_ptr_t
+{
+public:
+    //  Initialise atomic pointer
+    inline atomic_ptr_t()
     {
-    public:
+        ptr = NULL;
+    }
 
-        //  Initialise atomic pointer
-        inline atomic_ptr_t ()
-        {
-            ptr = NULL;
-        }
+    //  Destroy atomic pointer
+    inline ~atomic_ptr_t()
+    {
+    }
 
-        //  Destroy atomic pointer
-        inline ~atomic_ptr_t ()
-        {
-        }
+    //  Set value of atomic pointer in a non-threadsafe way
+    //  Use this function only when you are sure that at most one
+    //  thread is accessing the pointer at the moment.
+    inline void set(T *ptr_) //非原子操作
+    {
+        this->ptr = ptr_;
+    }
 
-        //  Set value of atomic pointer in a non-threadsafe way
-        //  Use this function only when you are sure that at most one
-        //  thread is accessing the pointer at the moment.
-        inline void set (T *ptr_)//非原子操作  
-        {
-            this->ptr = ptr_;
-        }
-
-        //  Perform atomic 'exchange pointers' operation. Pointer is set
-        //  to the 'val' value. Old value is returned.
-        // 设置新值，返回旧值
-        inline T *xchg (T *val_)    //原子操
-        {
+    //  Perform atomic 'exchange pointers' operation. Pointer is set
+    //  to the 'val' value. Old value is returned.
+    // 设置新值，返回旧值
+    inline T *xchg(T *val_) //原子操
+    {
 #if defined ZMQ_ATOMIC_PTR_ATOMIC_H
-            return (T*) atomic_swap_ptr (&ptr, val_);
+        return (T *)atomic_swap_ptr(&ptr, val_);
 #elif defined ZMQ_ATOMIC_PTR_TILE
-            return (T*) arch_atomic_exchange (&ptr, val_);
+        return (T *)arch_atomic_exchange(&ptr, val_);
 #elif defined ZMQ_ATOMIC_PTR_X86
-            T *old;
-            __asm__ volatile (
-                "lock; xchg %0, %2"
-                : "=r" (old), "=m" (ptr)
-                : "m" (ptr), "0" (val_));
-            return old;
+        T *old;
+        __asm__ volatile(
+            "lock; xchg %0, %2"
+            : "=r"(old), "=m"(ptr)
+            : "m"(ptr), "0"(val_));
+        return old;
 #elif defined ZMQ_ATOMIC_PTR_MUTEX
-            sync.lock ();
-            T *old = (T*) ptr;
-            ptr = val_;
-            sync.unlock ();
-            return old;
+        sync.lock();
+        T *old = (T *)ptr;
+        ptr = val_;
+        sync.unlock();
+        return old;
 #else
 #error atomic_ptr is not implemented for this platform
 #endif
-        }
+    }
 
-        //  Perform atomic 'compare and swap' operation on the pointer.
-        //  The pointer is compared to 'cmp' argument and if they are
-        //  equal, its value is set to 'val'. Old value of the pointer
-        //  is returned.
-        // 原来的值(ptr指向)如果和 comp_的值相同则更新为val_,并返回原来的ptr
-        //   ○ 如果相等返回ptr设置之前的值，并把ptr更新为参数val_的值，；
-        //   ○ 如果不相等直接返回ptr值。
-        inline T *cas (T *cmp_, T *val_)//原子操作
-        {
+    //  Perform atomic 'compare and swap' operation on the pointer.
+    //  The pointer is compared to 'cmp' argument and if they are
+    //  equal, its value is set to 'val'. Old value of the pointer
+    //  is returned.
+    // 原来的值(ptr指向)如果和 comp_的值相同则更新为val_,并返回原来的ptr
+    //   ○ 如果相等返回ptr设置之前的值，并把ptr更新为参数val_的值，；
+    //   ○ 如果不相等直接返回ptr值。
+    inline T *cas(T *cmp_, T *val_) //原子操作
+    {
 #if defined ZMQ_ATOMIC_PTR_ATOMIC_H
-            return (T*) atomic_cas_ptr (&ptr, cmp_, val_);
+        return (T *)atomic_cas_ptr(&ptr, cmp_, val_);
 #elif defined ZMQ_ATOMIC_PTR_TILE
-            return (T*) arch_atomic_val_compare_and_exchange (&ptr, cmp_, val_);
+        return (T *)arch_atomic_val_compare_and_exchange(&ptr, cmp_, val_);
 #elif defined ZMQ_ATOMIC_PTR_X86
-            T *old;
-            __asm__ volatile (
-                "lock; cmpxchg %2, %3"
-                : "=a" (old), "=m" (ptr)
-                : "r" (val_), "m" (ptr), "0" (cmp_)
-                : "cc");
-            return old;
+        T *old;
+        __asm__ volatile(
+            "lock; cmpxchg %2, %3"
+            : "=a"(old), "=m"(ptr)
+            : "r"(val_), "m"(ptr), "0"(cmp_)
+            : "cc");
+        return old;
 #else
 #error atomic_ptr is not implemented for this platform
 #endif
-        }
+    }
 
-    private:
-
-        volatile T *ptr;
+private:
+    volatile T *ptr;
 #if defined ZMQ_ATOMIC_PTR_MUTEX
-        mutex_t sync;
+    mutex_t sync;
 #endif
 
-        atomic_ptr_t (const atomic_ptr_t&);
-        const atomic_ptr_t &operator = (const atomic_ptr_t&);
-    };
-
+    atomic_ptr_t(const atomic_ptr_t &);
+    const atomic_ptr_t &operator=(const atomic_ptr_t &);
+};
 
 //  Remove macros local to this file.
 #if defined ZMQ_ATOMIC_PTR_WINDOWS
@@ -160,4 +158,3 @@
 #endif
 
 #endif
-

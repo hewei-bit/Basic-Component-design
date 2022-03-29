@@ -15,30 +15,28 @@ template <typename ELEM_T, QUEUE_INT Q_SIZE = ARRAY_LOCK_FREE_Q_DEFAULT_SIZE>
 class ArrayLockFreeQueue
 {
 public:
+    ArrayLockFreeQueue();
+    virtual ~ArrayLockFreeQueue();
 
-	ArrayLockFreeQueue();
-	virtual ~ArrayLockFreeQueue();
+    QUEUE_INT size();
 
-	QUEUE_INT size();
+    bool enqueue(const ELEM_T &a_data);
 
-	bool enqueue(const ELEM_T &a_data);
-
-	bool dequeue(ELEM_T &a_data);
+    bool dequeue(ELEM_T &a_data);
 
     bool try_dequeue(ELEM_T &a_data);
 
 private:
+    ELEM_T m_thequeue[Q_SIZE];
 
-	ELEM_T m_thequeue[Q_SIZE];
+    volatile QUEUE_INT m_count;
+    volatile QUEUE_INT m_writeIndex;
 
-	volatile QUEUE_INT m_count;
-	volatile QUEUE_INT m_writeIndex;
+    volatile QUEUE_INT m_readIndex;
 
-	volatile QUEUE_INT m_readIndex;
+    volatile QUEUE_INT m_maximumReadIndex;
 
-	volatile QUEUE_INT m_maximumReadIndex;
-
-	inline QUEUE_INT countToIndex(QUEUE_INT a_count);
+    inline QUEUE_INT countToIndex(QUEUE_INT a_count);
 };
 
 #include "ArrayLockFreeQueueImp.h"

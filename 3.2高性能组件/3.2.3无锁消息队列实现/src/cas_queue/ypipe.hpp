@@ -38,7 +38,7 @@ public:
     inline ypipe_t()
     {
         //  Insert terminator element into the queue.
-        queue.push(); //yqueue_t的尾指针加1，开始back_chunk为空，现在back_chunk指向第一个chunk_t块的第一个位置
+        queue.push(); // yqueue_t的尾指针加1，开始back_chunk为空，现在back_chunk指向第一个chunk_t块的第一个位置
 
         //  Let all the pointers to point to the terminator.
         //  (unless pipe is dead, in which case c is set to NULL).
@@ -124,11 +124,11 @@ public:
             w = f;
             return false; //线程看到flush返回false之后会发送一个消息给读线程，这需要写业务去做处理
         }
-        else  // 读端还有数据可读取
+        else // 读端还有数据可读取
         {
             //  Reader is alive. Nothing special to do now. Just move
             //  the 'first un-flushed item' pointer to 'f'.
-            w = f;             // 更新f的位置
+            w = f; // 更新f的位置
             return true;
         }
     }

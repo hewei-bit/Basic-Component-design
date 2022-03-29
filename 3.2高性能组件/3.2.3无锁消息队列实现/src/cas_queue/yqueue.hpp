@@ -48,9 +48,9 @@ public:
         begin_chunk = (chunk_t *)malloc(sizeof(chunk_t));
         alloc_assert(begin_chunk);
         begin_pos = 0;
-        back_chunk = NULL; //back_chunk总是指向队列中最后一个元素所在的chunk，现在还没有元素，所以初始为空
+        back_chunk = NULL; // back_chunk总是指向队列中最后一个元素所在的chunk，现在还没有元素，所以初始为空
         back_pos = 0;
-        end_chunk = begin_chunk; //end_chunk总是指向链表的最后一个chunk
+        end_chunk = begin_chunk; // end_chunk总是指向链表的最后一个chunk
         end_pos = 0;
     }
 
@@ -94,13 +94,14 @@ public:
     inline void push()
     {
         back_chunk = end_chunk;
-        back_pos = end_pos; //
+        back_pos = end_pos; // 更新可写的位置，根据end_pos取更新
 
-        if (++end_pos != N) //end_pos!=N表明这个chunk节点还没有满
+        if (++end_pos != N) // end_pos!=N表明这个chunk节点还没有满
             return;
 
         chunk_t *sc = spare_chunk.xchg(NULL); // 为什么设置为NULL？ 因为如果把之前值取出来了则没有spare chunk了，所以设置为NULL
-        if (sc)                               // 如果有spare chunk则继续复用它
+        // 如果有spare chunk则继续复用它
+        if (sc)
         {
             end_chunk->next = sc;
             sc->prev = end_chunk;
@@ -111,7 +112,7 @@ public:
             // printf("s_cout:%d\n", ++s_cout);
             end_chunk->next = (chunk_t *)malloc(sizeof(chunk_t)); // 分配一个chunk
             alloc_assert(end_chunk->next);
-            end_chunk->next->prev = end_chunk;  
+            end_chunk->next->prev = end_chunk;
         }
         end_chunk = end_chunk->next;
         end_pos = 0;

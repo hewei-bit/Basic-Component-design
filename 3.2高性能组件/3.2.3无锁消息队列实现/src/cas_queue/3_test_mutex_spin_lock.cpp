@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-
 #define MAX_THREAD_NUM 2
 #define FOR_LOOP_COUNT 2000
 #define FOR_ADD_COUNT 100000
@@ -16,34 +15,34 @@ static pthread_mutex_t mutex;
 
 typedef void *(*thread_func_t)(void *argv);
 
-int64_t get_current_millisecond() 
-{ 
+int64_t get_current_millisecond()
+{
     struct timeval tv;
-    gettimeofday(&tv,NULL);
+    gettimeofday(&tv, NULL);
     return ((unsigned long long)tv.tv_sec * 1000 + (long)tv.tv_usec / 1000);
 }
-
 
 void do_for_add(int count)
 {
     long sum = 0;
-    for(int i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
         sum += i;
     }
 }
 
-
 class atomic_flag_spinlock
 {
     std::atomic_flag flag;
+
 public:
-    atomic_flag_spinlock():
-        flag(ATOMIC_FLAG_INIT)
-    {}
+    atomic_flag_spinlock() : flag(ATOMIC_FLAG_INIT)
+    {
+    }
     void lock()
     {
-        while(flag.test_and_set(std::memory_order_acquire));
+        while (flag.test_and_set(std::memory_order_acquire))
+            ;
     }
     void unlock()
     {
@@ -62,7 +61,6 @@ static int lxx_atomic_add(int *ptr, int increment)
                      : "cc", "memory");
     return *ptr;
 }
-
 
 void *mutex_thread_main(void *argv)
 {
