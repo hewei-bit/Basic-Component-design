@@ -17,117 +17,157 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#define THREAD_NUM 10
+
+typedef unsigned long int uint64;
+
 typedef int (*pthread_mutex_lock_t)(pthread_mutex_t *mutex);
 pthread_mutex_lock_t pthread_mutex_lock_f;
 
 typedef int (*pthread_mutex_unlock_t)(pthread_mutex_t *mutex);
 pthread_mutex_unlock_t pthread_mutex_unlock_f;
 
-pthread_mutex_t mtx1 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mtx2 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mtx3 = PTHREAD_MUTEX_INITIALIZER;
-pthread_mutex_t mtx4 = PTHREAD_MUTEX_INITIALIZER;
+#define DEADLOCK_TEST_1 1
+
+#define DEADLOCK_GRAPH_CHECK 1
+
+#if DEADLOCK_GRAPH_CHECK
+#define MAX 100
+
+enum Type
+{
+    PROCESS,
+    RESOURCE
+};
+
+struct source_type
+{
+    uint64 id;
+    enum Type type;
+
+    uint64 lock_id;
+    int degress;
+};
+
+struct vertex
+{
+    struct source_type s;
+    struct vertex *next;
+};
+
+struct task_graph
+{
+    struct vertex list[MAX];
+    int num;
+
+    struct source_type locklist[MAX];
+    int lockidx;
+
+    pthread_mutex_t mutex;
+};
+
+struct task_graph *tg = NULL;
+int path[MAX + 1];
+int visited[MAX];
+int k = 0;
+int deadlock = 0;
+
+#endif
 
 int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
-
-    printf("pthread_mutex_lock selfid %ld, mutex: %p\n", pthread_self(), mutex);
-    // beforelock(pthread_self(), mutex);
+    pthread_t selfid = pthread_self();
 
     pthread_mutex_lock_f(mutex);
-
-    // afterlock(pthread_self(), mutex);
 }
 
-int pthread_mutex_unlock(pthread_mutex_t *mutex)
+static init_hook()
 {
-
-    printf("pthread_mutex_unlock\n");
-
-    pthread_mutex_unlock_f(mutex);
-    // afterunlock(pthread_self(), mutex);
-}
-
-static int init_hook()
-{
-    //
-    // dlopen();
     pthread_mutex_lock_f = dlsym(RTLD_NEXT, "pthread_mutex_lock");
 
-    pthread_mutex_unlock_f = dlsym(RTLD_NEXT, "pthread_mutex_unlock");
+    pthread_mutex_lock_f = dlsym(RTLD_NEXT, "pthread_mutex_unlock");
 }
 
-void *thread_routine_a(void *arg)
+#if DEADLOCK_TEST_1
+
+pthread_mutex_t mutex_1 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_2 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_3 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_4 = PTHREAD_MUTEX_INITIALIZER;
+
+void *thread_rountine_1(void *args)
 {
+    pthread_t selfid = pthread_self(); //
 
-    printf("thread_routine a \n");
-    pthread_mutex_lock(&mtx1);
+    printf("thread_routine 1 : %ld \n", selfid);
+
+    pthread_mutex_lock(&mutex_1);
     sleep(1);
+    pthread_mutex_lock(&mutex_2);
 
-    pthread_mutex_lock(&mtx2);
+    pthread_mutex_unlock(&mutex_2);
+    pthread_mutex_unlock(&mutex_1);
 
-    pthread_mutex_unlock(&mtx2);
-
-    pthread_mutex_unlock(&mtx1);
-
-    printf("thread_routine a exit\n");
+    return (void *)(0);
 }
 
-void *thread_routine_b(void *arg)
+void *thread_rountine_2(void *args)
 {
+    pthread_t selfid = pthread_self(); //
 
-    printf("thread_routine b \n");
-    pthread_mutex_lock(&mtx2);
+    printf("thread_routine 2 : %ld \n", selfid);
+
+    pthread_mutex_lock(&mutex_2);
     sleep(1);
+    pthread_mutex_lock(&mutex_3);
 
-    pthread_mutex_lock(&mtx3);
+    pthread_mutex_unlock(&mutex_3);
+    pthread_mutex_unlock(&mutex_2);
 
-    pthread_mutex_unlock(&mtx3);
-
-    pthread_mutex_unlock(&mtx2);
-
-    printf("thread_routine b exit \n");
-    // -----
-    pthread_mutex_lock(&mtx1);
+    return (void *)(0);
 }
 
-void *thread_routine_c(void *arg)
+void *thread_rountine_3(void *args)
 {
+    pthread_t selfid = pthread_self(); //
 
-    printf("thread_routine c \n");
-    pthread_mutex_lock(&mtx3);
+    printf("thread_routine 3 : %ld \n", selfid);
+
+    pthread_mutex_lock(&mutex_3);
     sleep(1);
+    pthread_mutex_lock(&mutex_4);
 
-    pthread_mutex_lock(&mtx4);
+    pthread_mutex_unlock(&mutex_4);
+    pthread_mutex_unlock(&mutex_3);
 
-    pthread_mutex_unlock(&mtx4);
-
-    pthread_mutex_unlock(&mtx3);
-
-    printf("thread_routine c exit \n");
+    return (void *)(0);
 }
 
-void *thread_routine_d(void *arg)
+void *thread_rountine_4(void *args)
 {
+    pthread_t selfid = pthread_self(); //
 
-    printf("thread_routine d \n");
-    pthread_mutex_lock(&mtx4);
+    printf("thread_routine 4 : %ld \n", selfid);
+
+    pthread_mutex_lock(&mutex_4);
     sleep(1);
+    pthread_mutex_lock(&mutex_1);
 
-    pthread_mutex_lock(&mtx1);
+    pthread_mutex_unlock(&mutex_1);
+    pthread_mutex_unlock(&mutex_4);
 
-    pthread_mutex_unlock(&mtx1);
-
-    pthread_mutex_unlock(&mtx4);
-
-    printf("thread_routine d exit \n");
+    return (void *)(0);
 }
+#endif
 
 int main()
 {
-#if 1
-    init_hook();
 
+#if DEADLOCK_TEST_1
+    init_hook();
+    start_check();
+
+    printf("start_check\n");
     pthread_t tid1, tid2, tid3, tid4;
 
     pthread_create(&tid1, NULL, thread_routine_a, NULL);
@@ -139,5 +179,43 @@ int main()
     pthread_join(tid2, NULL);
     pthread_join(tid3, NULL);
     pthread_join(tid4, NULL);
+#endif
+
+#if DEADLOCK_GRAPH_CHECK
+    tg = (struct task_graph *)malloc(sizeof(struct task_graph));
+    tg->num = 0;
+
+    struct source_type v1;
+    v1.id = 1;
+    v1.type = PROCESS;
+    add_vertex(v1);
+
+    struct source_type v2;
+    v2.id = 2;
+    v2.type = PROCESS;
+    add_vertex(v2);
+
+    struct source_type v3;
+    v3.id = 3;
+    v3.type = PROCESS;
+    add_vertex(v3);
+
+    struct source_type v4;
+    v4.id = 4;
+    v4.type = PROCESS;
+    add_vertex(v4);
+
+    struct source_type v5;
+    v5.id = 5;
+    v5.type = PROCESS;
+    add_vertex(v5);
+
+    add_edge(v1, v2);
+    add_edge(v2, v3);
+    add_edge(v3, v4);
+    add_edge(v4, v5);
+    add_edge(v3, v1);
+
+    search_for_cycle(search_vertex(v1));
 #endif
 }

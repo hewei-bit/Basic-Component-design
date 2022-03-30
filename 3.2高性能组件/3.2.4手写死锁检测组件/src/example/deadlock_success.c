@@ -10,8 +10,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <unistd.h>
-
 #define THREAD_NUM 10
 
 typedef unsigned long int uint64;
