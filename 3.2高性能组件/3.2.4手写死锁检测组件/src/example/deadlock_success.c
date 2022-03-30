@@ -10,21 +10,14 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-<<<<<<< HEAD
-#include <unistd.h>
-
-=======
->>>>>>> a794a4b86848f75056ecfcbc2ab0cd8dc638afc1
 #define THREAD_NUM 10
 
 typedef unsigned long int uint64;
 
 typedef int (*pthread_mutex_lock_t)(pthread_mutex_t *mutex);
-
 pthread_mutex_lock_t pthread_mutex_lock_f;
 
 typedef int (*pthread_mutex_unlock_t)(pthread_mutex_t *mutex);
-
 pthread_mutex_unlock_t pthread_mutex_unlock_f;
 
 #if 1 // graph
@@ -39,7 +32,6 @@ enum Type
 
 struct source_type
 {
-
     uint64 id;
     enum Type type;
 
@@ -49,14 +41,12 @@ struct source_type
 
 struct vertex
 {
-
     struct source_type s;
     struct vertex *next;
 };
 
 struct task_graph
 {
-
     struct vertex list[MAX];
     int num;
 
@@ -74,7 +64,6 @@ int deadlock = 0;
 
 struct vertex *create_vertex(struct source_type type)
 {
-
     struct vertex *tex = (struct vertex *)malloc(sizeof(struct vertex));
 
     tex->s = type;
@@ -85,12 +74,10 @@ struct vertex *create_vertex(struct source_type type)
 
 int search_vertex(struct source_type type)
 {
-
     int i = 0;
 
     for (i = 0; i < tg->num; i++)
     {
-
         if (tg->list[i].s.type == type.type && tg->list[i].s.id == type.id)
         {
             return i;
@@ -102,10 +89,8 @@ int search_vertex(struct source_type type)
 
 void add_vertex(struct source_type type)
 {
-
     if (search_vertex(type) == -1)
     {
-
         tg->list[tg->num].s = type;
         tg->list[tg->num].next = NULL;
         tg->num++;
@@ -114,7 +99,6 @@ void add_vertex(struct source_type type)
 
 int add_edge(struct source_type from, struct source_type to)
 {
-
     add_vertex(from);
     add_vertex(to);
 
@@ -130,7 +114,6 @@ int add_edge(struct source_type from, struct source_type to)
 
 int verify_edge(struct source_type i, struct source_type j)
 {
-
     if (tg->num == 0)
         return 0;
 
@@ -144,7 +127,6 @@ int verify_edge(struct source_type i, struct source_type j)
 
     while (v != NULL)
     {
-
         if (v->s.id == j.id)
             return 1;
 
@@ -156,22 +138,18 @@ int verify_edge(struct source_type i, struct source_type j)
 
 int remove_edge(struct source_type from, struct source_type to)
 {
-
     int idxi = search_vertex(from);
     int idxj = search_vertex(to);
 
     if (idxi != -1 && idxj != -1)
     {
-
         struct vertex *v = &tg->list[idxi];
         struct vertex *remove;
 
         while (v->next != NULL)
         {
-
             if (v->next->s.id == to.id)
             {
-
                 remove = v->next;
                 v->next = v->next->next;
 
@@ -186,13 +164,11 @@ int remove_edge(struct source_type from, struct source_type to)
 
 void print_deadlock(void)
 {
-
     int i = 0;
 
     printf("deadlock : ");
     for (i = 0; i < k - 1; i++)
     {
-
         printf("%ld --> ", tg->list[path[i]].s.id);
     }
 
@@ -201,11 +177,9 @@ void print_deadlock(void)
 
 int DFS(int idx)
 {
-
     struct vertex *ver = &tg->list[idx];
     if (visited[idx] == 1)
     {
-
         path[k++] = idx;
         print_deadlock();
         deadlock = 1;
@@ -218,7 +192,6 @@ int DFS(int idx)
 
     while (ver->next != NULL)
     {
-
         DFS(search_vertex(ver->next->s));
         k--;
 
@@ -230,7 +203,6 @@ int DFS(int idx)
 
 int search_for_cycle(int idx)
 {
-
     struct vertex *ver = &tg->list[idx];
     visited[idx] = 1;
     k = 0;
@@ -238,7 +210,6 @@ int search_for_cycle(int idx)
 
     while (ver->next != NULL)
     {
-
         int i = 0;
         for (i = 0; i < tg->num; i++)
         {
@@ -308,7 +279,6 @@ int main() {
 
 void check_dead_lock(void)
 {
-
     int i = 0;
 
     deadlock = 0;
@@ -327,10 +297,8 @@ void check_dead_lock(void)
 
 static void *thread_routine(void *args)
 {
-
     while (1)
     {
-
         sleep(5);
         check_dead_lock();
     }
@@ -338,7 +306,6 @@ static void *thread_routine(void *args)
 
 void start_check(void)
 {
-
     tg = (struct task_graph *)malloc(sizeof(struct task_graph));
     tg->num = 0;
     tg->lockidx = 0;
@@ -492,7 +459,6 @@ void unlock_after(uint64 thread_id, uint64 lockaddr)
 
 int pthread_mutex_lock(pthread_mutex_t *mutex)
 {
-
     pthread_t selfid = pthread_self(); //
 
     lock_before(selfid, (uint64)mutex);
@@ -511,17 +477,12 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex)
 
 static int init_hook()
 {
-
     pthread_mutex_lock_f = dlsym(RTLD_NEXT, "pthread_mutex_lock");
 
     pthread_mutex_unlock_f = dlsym(RTLD_NEXT, "pthread_mutex_unlock");
 }
 
-<<<<<<< HEAD
 #if 1 // debug
-=======
-#if 0 // debug
->>>>>>> a794a4b86848f75056ecfcbc2ab0cd8dc638afc1
 
 pthread_mutex_t mutex_1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_2 = PTHREAD_MUTEX_INITIALIZER;

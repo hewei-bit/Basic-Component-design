@@ -8,8 +8,8 @@ set(CMAKE_BUILD_TYPE Debug)
 
 include_directories(${CMAKE_SOURCE_DIR}/inc)
 
-add_executable(deadlock_success src/practice/deadlock_success.c)
-TARGET_LINK_LIBRARIES(deadlock_hw pthread)
+add_executable(deadlock_success src/example/deadlock_success.c)
+TARGET_LINK_LIBRARIES(deadlock_success pthread dl)
 
-add_executable(deadlock src/example/deadlockøŒ…œ ÷–¥.c)
-TARGET_LINK_LIBRARIES(deadlock pthread)
+add_executable(deadlock_hw src/practice/deadlock_hw.c)
+TARGET_LINK_LIBRARIES(deadlock_hw pthread dl)
