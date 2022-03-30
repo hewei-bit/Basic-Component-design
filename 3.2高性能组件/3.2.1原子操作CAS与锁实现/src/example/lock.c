@@ -20,7 +20,6 @@ pthread_spinlock_t spinlock;
 
 int inc(int *value, int add)
 {
-
     int old;
     __asm__ volatile(
         "lock; xaddl %2, %1;"
@@ -32,33 +31,24 @@ int inc(int *value, int add)
 
 void *func(void *arg)
 {
-
     int *pcount = (int *)arg;
 
     int i = 0;
-
-    //
 
     while (i++ < 100000)
     {
 #if 0
 		(*pcount) ++;
 #elif 0
-
         pthread_mutex_lock(&mutex);
         (*pcount)++;
         pthread_mutex_unlock(&mutex);
-
 #elif 0
-
         pthread_spin_lock(&spinlock);
         (*pcount)++;
         pthread_spin_unlock(&spinlock);
-
 #else
-
         inc(pcount, 1);
-
 #endif
         usleep(1);
     }

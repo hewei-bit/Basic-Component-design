@@ -20,24 +20,25 @@
 
 #include <sys/syscall.h>
 
-#define TRHEAD_COUNT 3
+#define THRHEAD_COUNT 3
 
-#define thread_single 1
-
-#define with_nothing 1
+#define thread_single 0
+#define with_nothing 0
 #define with_mutex_lock 0
 #define with_spin_lock 0
 #define with_atomic 0
 
-#define pthread_key_test 1
+#define pthread_key_test 0
 
-#define setjmp_test 1
-#define setjmp_test_with_trycatch 1
+#define setjmp_test 0
+#define setjmp_test_with_trycatch 0
 
 #define CPU_affinity_test 1
 
 pthread_mutex_t mutex;
 pthread_spinlock_t spinlock;
+
+pthread_key_t key;
 
 // 原子操作
 int inc(int *value, int add)
@@ -79,8 +80,6 @@ void *func(void *arg)
 
 // 线程私有数据测试
 #if pthread_key_test
-
-pthread_key_t key;
 
 typedef void *(*thread_cb)(void *);
 
@@ -141,23 +140,10 @@ void *thread3_proc(void *arg)
 }
 #endif
 
-#if setjmp_test
-void sub_func(int idx)
-{
-
-    printf("sub_func : %d\n", idx);
-#if !setjmp_test_with_trycatch
-    longjmp(env, idx);
-#endif
-    Throw(idx);
-}
-#endif
-
 #if setjmp_test_with_trycatch
 // setjmp / longjmp
 struct ExceptionFrame
 {
-
     jmp_buf env;
     int count;
 
@@ -179,6 +165,18 @@ int count = 0;
 
 #define Finally
 
+#endif
+
+#if setjmp_test
+void sub_func(int idx)
+{
+
+    printf("sub_func : %d\n", idx);
+#if !setjmp_test_with_trycatch
+    longjmp(env, idx);
+#endif
+    Throw(idx);
+}
 #endif
 
 #if CPU_affinity_test
@@ -205,18 +203,17 @@ void process_affinity(int num)
 
 int main()
 {
-    pthread_t thid[TRHEAD_COUNT] = {0};
+    pthread_t thid[THRHEAD_COUNT] = {0};
 
     int count = 0;
-
+    int i = 0;
     pthread_mutex_init(&mutex, NULL);
     pthread_spin_init(&spinlock, PTHREAD_PROCESS_SHARED);
     pthread_key_create(&key, NULL);
 
 #if thread_single
 
-    int i = 0;
-    for (i = 0; i < TRHEAD_COUNT; i++)
+    for (i = 0; i < THRHEAD_COUNT; i++)
     {
         pthread_create(&thid[i], NULL, func, &count);
     }
@@ -229,18 +226,17 @@ int main()
 #endif
 
 #if pthread_key_test
-    thread_cb callback[THREAD_COUNT] = {
+    thread_cb callback[THRHEAD_COUNT] = {
         thread1_proc,
         thread2_proc,
         thread3_proc};
 
-    int i = 0;
-    for (i = 0; i < THREAD_COUNT; i++)
+    for (i = 0; i < THRHEAD_COUNT; i++)
     {
         pthread_create(&thid[i], NULL, callback[i], &count);
     }
 
-    for (i = 0; i < THREAD_COUNT; i++)
+    for (i = 0; i < THRHEAD_COUNT; i++)
     {
         pthread_join(thid[i], NULL);
     }
@@ -296,7 +292,6 @@ int main()
     // 8
     int num = sysconf(_SC_NPROCESSORS_CONF);
 
-    int i = 0;
     pid_t pid = 0;
     for (i = 0; i < num / 2; i++)
     {
