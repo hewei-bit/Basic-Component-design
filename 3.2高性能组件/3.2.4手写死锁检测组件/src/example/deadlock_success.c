@@ -10,8 +10,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+<<<<<<< HEAD
 #include <unistd.h>
 
+=======
+>>>>>>> a794a4b86848f75056ecfcbc2ab0cd8dc638afc1
 #define THREAD_NUM 10
 
 typedef unsigned long int uint64;
@@ -514,7 +517,11 @@ static int init_hook()
     pthread_mutex_unlock_f = dlsym(RTLD_NEXT, "pthread_mutex_unlock");
 }
 
+<<<<<<< HEAD
 #if 1 // debug
+=======
+#if 0 // debug
+>>>>>>> a794a4b86848f75056ecfcbc2ab0cd8dc638afc1
 
 pthread_mutex_t mutex_1 = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_2 = PTHREAD_MUTEX_INITIALIZER;
