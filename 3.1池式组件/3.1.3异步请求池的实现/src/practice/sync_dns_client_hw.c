@@ -323,6 +323,7 @@ int dns_client_commit(const char *domain)
     struct dns_question question = {0};
     dns_create_question(&question, domain);
 
+    // 发送dns请求
     char request[1024] = {0};
     int req_len = dns_build_request(&header, &question, request);
     int slen = sendto(sockfd, request, req_len, 0, (struct sockaddr *)&dest, sizeof(struct sockaddr));
@@ -331,6 +332,7 @@ int dns_client_commit(const char *domain)
     struct sockaddr_in addr;
     size_t addr_len = sizeof(struct sockaddr_in);
 
+    // 阻塞等待返回的dns消息
     int n = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, (socklen_t *)&addr_len);
 
     printf("recvfrom n : %d\n", n);
