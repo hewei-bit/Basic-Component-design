@@ -12,9 +12,8 @@
 extern void *__libc_malloc(size_t size);
 int enable_malloc_hook = 1;
 
-extern void __libc_free(void* p);
+extern void __libc_free(void *p);
 int enable_free_hook = 1;
-
 
 // func --> malloc() { __builtin_return_address(0)}
 
@@ -22,103 +21,106 @@ int enable_free_hook = 1;
 
 // main --> callback --> func --> malloc() { __builtin_return_address(2)}
 
+// calloc, realloc
+void *malloc(size_t size)
+{
 
-//calloc, realloc
-void *malloc(size_t size) {
+    if (enable_malloc_hook)
+    {
+        enable_malloc_hook = 0;
 
-	if (enable_malloc_hook) {
-		enable_malloc_hook = 0;
+        void *p = __libc_malloc(size);
 
-		void *p = __libc_malloc(size);
+        void *caller = __builtin_return_address(1); // 1
 
-		void *caller = __builtin_return_address(1); // 1
-		
-		char buff[128] = {0};
-		sprintf(buff, "./mem/%p.mem", p);
+        char buff[128] = {0};
+        sprintf(buff, "./mem/%p.mem", p);
 
-		FILE *fp = fopen(buff, "w");
-		fprintf(fp, "[+%p] --> addr:%p, size:%ld\n", caller, p, size);
-		fflush(fp);
+        FILE *fp = fopen(buff, "w");
+        fprintf(fp, "[+%p] --> addr:%p, size:%ld\n", caller, p, size);
+        fflush(fp);
 
-		//fclose(fp); //free
-		
-		enable_malloc_hook = 1;
-		
-		return p;
-		
-	} else {
-		return __libc_malloc(size);
-	}
-	
+        // fclose(fp); //free
 
-	return NULL;
+        enable_malloc_hook = 1;
+
+        return p;
+    }
+    else
+    {
+        return __libc_malloc(size);
+    }
+
+    return NULL;
 }
 
+void free(void *p)
+{
+    if (enable_free_hook)
+    {
 
-void free(void *p) {
-	if (enable_free_hook) {
+        enable_free_hook = 0;
 
-		enable_free_hook = 0;
+        char buff[128] = {0};
+        sprintf(buff, "./mem/%p.mem", p);
 
-		char buff[128] = {0};
-		sprintf(buff, "./mem/%p.mem", p);
+        if (unlink(buff) < 0)
+        { // no exist
+            printf("double free: %p\n", p);
+        }
 
-		if (unlink(buff) < 0) { // no exist
-			printf("double free: %p\n", p);
-		}
-		
-		__libc_free(p);
+        __libc_free(p);
 
-		// rm -rf p.mem
-		enable_free_hook = 1;
-
-	} else {
-		__libc_free(p);
-	}
+        // rm -rf p.mem
+        enable_free_hook = 1;
+    }
+    else
+    {
+        __libc_free(p);
+    }
 }
-
-#elif 1
-
-
-void *malloc_hook(size_t size, const char *file, int line) {
-
-	void *p = malloc(size);
-
-	char buff[128] = {0};
-	sprintf(buff, "./mem/%p.mem", p);
-
-	FILE *fp = fopen(buff, "w");
-	fprintf(fp, "[+%s:%d] --> addr:%p, size:%ld\n", file, line, p, size);
-	fflush(fp);	
-
-	fclose(fp);
-
-	return p;
-}
-
-void free_hook(void *p, const char *file, int line) {
-
-	char buff[128] = {0};
-	sprintf(buff, "./mem/%p.mem", p);
-
-	if (unlink(buff) < 0) { // no exist
-		printf("double free: %p\n", p);
-		return ;
-	}
-	
-	free(p);
-
-}
-
-
-#if 0
-#define malloc(size)	malloc_hook(size, __FILE__, __LINE__)
-#define free(p)			free_hook(p, __FILE__, __LINE__)
-#endif
-
 
 #elif 0
 
+void *malloc_hook(size_t size, const char *file, int line)
+{
+
+    void *p = malloc(size);
+
+    char buff[128] = {0};
+    sprintf(buff, "./mem/%p.mem", p);
+
+    FILE *fp = fopen(buff, "w");
+    fprintf(fp, "[+%s:%d] --> addr:%p, size:%ld\n", file, line, p, size);
+    fflush(fp);
+
+    fclose(fp);
+
+    return p;
+}
+
+void free_hook(void *p, const char *file, int line)
+{
+
+    char buff[128] = {0};
+    sprintf(buff, "./mem/%p.mem", p);
+
+    if (unlink(buff) < 0)
+    { // no exist
+        printf("double free: %p\n", p);
+        return;
+    }
+
+    free(p);
+}
+
+#if 1
+#define malloc(size) malloc_hook(size, __FILE__, __LINE__)
+#define free(p) free_hook(p, __FILE__, __LINE__)
+#endif
+
+#elif 1
+// 对原来的__malloc_hook进行替换
 typedef void *(*malloc_hook_t)(size_t size, const void *caller);
 malloc_hook_t malloc_f;
 
@@ -130,62 +132,63 @@ int replaced = 0;
 void mem_trace(void);
 void mem_untrace(void);
 
+void *malloc_hook_f(size_t size, const void *caller)
+{
 
+    mem_untrace();
+    void *ptr = malloc(size);
+    // printf("+%p: addr[%p]\n", caller, ptr);
 
-void *malloc_hook_f(size_t size, const void *caller) {
+    char buff[128] = {0};
+    sprintf(buff, "./mem/%p.mem", ptr);
 
-	mem_untrace();
-	void *ptr = malloc(size);
-	//printf("+%p: addr[%p]\n", caller, ptr);
+    FILE *fp = fopen(buff, "w");
+    fprintf(fp, "[+%p] --> addr:%p, size:%ld\n", caller, ptr, size);
+    fflush(fp);
 
-	char buff[128] = {0};
-	sprintf(buff, "./mem/%p.mem", ptr);
+    fclose(fp); // free
 
-	FILE *fp = fopen(buff, "w");
-	fprintf(fp, "[+%p] --> addr:%p, size:%ld\n", caller, ptr, size);
-	fflush(fp);
+    mem_trace();
 
-	fclose(fp); //free
-	
-	mem_trace();
-		
-	return ptr;
-	
+    return ptr;
 }
 
-void *free_hook_f(void *p, const void *caller) {
+void *free_hook_f(void *p, const void *caller)
+{
 
-	mem_untrace();
-	//printf("-%p: addr[%p]\n", caller, p);
+    mem_untrace();
+    // printf("-%p: addr[%p]\n", caller, p);
 
-	char buff[128] = {0};
-	sprintf(buff, "./mem/%p.mem", p);
+    char buff[128] = {0};
+    sprintf(buff, "./mem/%p.mem", p);
 
-	if (unlink(buff) < 0) { // no exist
-		printf("double free: %p\n", p);
-		return ;
-	}
-	
-	free(p);
-	mem_trace();
-	
+    if (unlink(buff) < 0)
+    { // no exist
+        printf("double free: %p\n", p);
+        return;
+    }
+
+    free(p);
+    mem_trace();
 }
 
-void mem_trace(void) { //mtrace
+void mem_trace(void)
+{ // mtrace
 
-	replaced = 1;
-	malloc_f = __malloc_hook; //malloc --> 
-	free_f = __free_hook;
+    replaced = 1;
+    malloc_f = __malloc_hook; // malloc -->
+    free_f = __free_hook;
 
-	__malloc_hook = malloc_hook_f;
-	__free_hook = free_hook_f;
+    __malloc_hook = malloc_hook_f;
+    __free_hook = free_hook_f;
 }
 
-void mem_untrace(void) {
-	
-	__malloc_hook = malloc_f;
-	__free_hook = free_f;
-	replaced = 0;
+void mem_untrace(void)
+{
+
+    __malloc_hook = malloc_f;
+    __free_hook = free_f;
+    replaced = 0;
 }
 
 #endif
@@ -198,57 +201,55 @@ void mem_untrace(void) {
  */
 
 // addr2line -f -e memleak -a 0x4006f7
-int main() {
+int main()
+{
 #if 0
-	void *p1 = malloc(10);
-	void *p2 = malloc(20); //calloc, realloc
+    void *p1 = malloc(10);
+    void *p2 = malloc(20); // calloc, realloc
 
-	free(p1);
+    free(p1);
 
-	void *p3 = malloc(20);
-	void *p4 = malloc(20);
+    void *p3 = malloc(20);
+    void *p4 = malloc(20);
 
-	free(p2);
-	free(p4);
-	free(p4);
-	
+    free(p2);
+    free(p4);
+    free(p4);
+
+#elif 0
+
+    mem_trace();
+
+    void *p1 = malloc(10);
+    void *p2 = malloc(20); // calloc, realloc
+
+    free(p1);
+
+    void *p3 = malloc(20);
+    void *p4 = malloc(20);
+
+    free(p2);
+    free(p4);
+
+    mem_untrace();
+
 #elif 1
 
-	mem_trace();
+    mtrace();
 
-	void *p1 = malloc(10);
-	void *p2 = malloc(20); //calloc, realloc
+    void *p1 = malloc(10);
+    void *p2 = malloc(20); // calloc, realloc
 
-	free(p1);
+    free(p1);
 
-	void *p3 = malloc(20);
-	void *p4 = malloc(20);
+    void *p3 = malloc(20);
+    void *p4 = malloc(20);
 
-	free(p2);
-	free(p4);
+    free(p2);
+    free(p4);
 
-	mem_untrace();
-
-#else
-
-	mtrace();
-
-	void *p1 = malloc(10);
-	void *p2 = malloc(20); //calloc, realloc
-
-	free(p1);
-
-	void *p3 = malloc(20);
-	void *p4 = malloc(20);
-
-	free(p2);
-	free(p4);
-
-	muntrace();
+    muntrace();
 
 #endif
-	return 0;
+    return 0;
 }
-
-
-
