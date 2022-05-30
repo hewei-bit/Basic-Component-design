@@ -9,6 +9,7 @@
 
 CResultSet::CResultSet(MYSQL_RES *res)
 {
+    m_res = res;
 }
 
 CResultSet::~CResultSet()
@@ -31,7 +32,7 @@ char *CResultSet::GetString(const char *key)
 {
 }
 
-/////////////////////////////////////////
+////////////////////////////////////////////////////
 CPrepareStatement::CPrepareStatement()
 {
 }
@@ -68,7 +69,7 @@ uint32_t CPrepareStatement::GetInsertId()
 {
 }
 
-/////////////////////
+/////////////////////////////////////////////////
 CDBConn::CDBConn(CDBPool *pPool)
 {
 }
@@ -110,37 +111,39 @@ bool CDBConn::ExecuteUpdate(const char *sql_query, bool care_affected_rows)
 {
 }
 
-// bool CDBConn::ExecuteUpdate2(const char *sql_query, bool care_affected_rows)
-// {
-// again:  // 不能这么写
-// 	if (mysql_real_query(m_mysql, sql_query, strlen(sql_query)))
-// 	{
-// 		log_error("mysql_real_query failed: %s, sql: %s\n", mysql_error(m_mysql), sql_query);
-// 		//g_master_conn_fail_num ++;
-// 		return false;
-// 	} else {
-// 		mysql_ping(m_mysql);
-// 		goto again;
-// 	}
+bool CDBConn::ExecuteUpdate2(const char *sql_query, bool care_affected_rows)
+{
+again: // 不能这么写
+    if (mysql_real_query(m_mysql, sql_query, strlen(sql_query)))
+    {
+        log_error("mysql_real_query failed: %s, sql: %s\n", mysql_error(m_mysql), sql_query);
+        // g_master_conn_fail_num ++;
+        return false;
+    }
+    else
+    {
+        mysql_ping(m_mysql);
+        goto again;
+    }
 
-// 	if (mysql_affected_rows(m_mysql) > 0)
-// 	{
-// 		return true;
-// 	}
-// 	else
-// 	{ // 影响的行数为0时
-// 		if (care_affected_rows)
-// 		{ // 如果在意影响的行数时, 返回false, 否则返回true
-// 			log_error("mysql_real_query failed: %s, sql: %s\n\n", mysql_error(m_mysql), sql_query);
-// 			return false;
-// 		}
-// 		else
-// 		{
-// 			log_warn("affected_rows=0, sql: %s\n\n", sql_query);
-// 			return true;
-// 		}
-// 	}
-// }
+    if (mysql_affected_rows(m_mysql) > 0)
+    {
+        return true;
+    }
+    else
+    { // 影响的行数为0时
+        if (care_affected_rows)
+        { // 如果在意影响的行数时, 返回false, 否则返回true
+            log_error("mysql_real_query failed: %s, sql: %s\n\n", mysql_error(m_mysql), sql_query);
+            return false;
+        }
+        else
+        {
+            log_warn("affected_rows=0, sql: %s\n\n", sql_query);
+            return true;
+        }
+    }
+}
 
 bool CDBConn::StartTransaction()
 {
@@ -157,7 +160,7 @@ uint32_t CDBConn::GetInsertId()
 {
 }
 
-////////////////
+/////////////////////////////////////////////////////
 CDBPool::CDBPool(const char *pool_name, const char *db_server_ip, uint16_t db_server_port,
                  const char *username, const char *password, const char *db_name, int max_conn_cnt)
 {
